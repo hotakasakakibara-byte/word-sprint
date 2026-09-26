@@ -1,0 +1,1772 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6feb">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="単語スプリント">
+<title>単語スプリント</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --text: #1b1f24; --sub: #667085; --line: #e3e6eb;
+  --accent: #1f6feb; --ok: #16a34a; --ng: #dc2626; --warn: #d97706; --chip: #eef2f7;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button {
+  border: 1px solid var(--line); background: var(--panel); border-radius: 10px;
+  padding: 10px 14px; cursor: pointer;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.danger { color: var(--ng); }
+button:disabled { opacity: .45; cursor: default; }
+input, select, textarea {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+}
+.wrap { max-width: 720px; margin: 0 auto; padding: 16px; }
+.view { display: none; }
+.view.on { display: block; }
+header.top { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+header.top h1 { font-size: 20px; margin: 0; flex: 1; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.grow { flex: 1; }
+.sub { color: var(--sub); font-size: 13px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; margin: 12px 0; }
+.stat { background: var(--chip); border-radius: 10px; padding: 10px; }
+.stat b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--sub); }
+.big-btn { width: 100%; padding: 16px; font-size: 18px; margin-top: 4px; }
+.btn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+label.field { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+label.field:last-child { border-bottom: 0; }
+label.field input[type=number] { width: 90px; }
+.hint { font-size: 12px; color: var(--sub); }
+h2 { font-size: 16px; margin: 0 0 10px; }
+
+/* 学習画面 */
+#study { position: fixed; inset: 0; display: none; flex-direction: column; background: var(--bg); }
+#study.on { display: flex; }
+.s-top { padding: 10px 16px 6px; padding-top: max(10px, env(safe-area-inset-top)); }
+.s-bar { height: 6px; background: var(--chip); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.s-bar i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .15s; }
+#card {
+  flex: 1; display: flex; align-items: flex-start; justify-content: center;
+  padding: clamp(12px, 9vh, 96px) 16px 8px; user-select: none; touch-action: pan-y; cursor: pointer; min-height: 0;
+}
+#card .sheet {
+  position: relative; width: min(680px, 100%); max-height: 100%; overflow: auto;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 20px;
+  padding: 28px 20px 22px; box-shadow: 0 6px 24px rgba(16, 24, 40, .06);
+  transition: transform .18s ease, box-shadow .12s, background-color .12s;
+}
+#card.dragging .sheet { transition: none; }
+#card.drag-ok .sheet { background: color-mix(in srgb, var(--ok) 10%, var(--panel)); box-shadow: 0 0 0 3px var(--ok); }
+#card.drag-ng .sheet { background: color-mix(in srgb, var(--ng) 10%, var(--panel)); box-shadow: 0 0 0 3px var(--ng); }
+#card .no { color: var(--sub); font-size: 14px; font-variant-numeric: tabular-nums; }
+#card .en { font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif; font-size: clamp(36px, 9vw, 64px); font-weight: 600; margin: 6px 0 14px; word-break: break-word; line-height: 1.12; letter-spacing: -.01em; }
+#card .ja { font-size: clamp(18px, 4.6vw, 23px); max-width: 600px; line-height: 1.55; min-height: 3em; }
+#card .ja.hide { visibility: hidden; }
+#card .tag { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--chip); color: var(--sub); }
+#card.flash-ok .sheet { box-shadow: 0 0 0 3px var(--ok); }
+#card.flash-ng .sheet { box-shadow: 0 0 0 3px var(--ng); }
+#card .mark { position: absolute; top: 12px; right: 16px; font-size: 28px; font-weight: 700; }
+#card .others { margin-top: 12px; display: grid; grid-template-columns: max-content 1fr; gap: 4px 10px; max-width: 600px; width: 100%; text-align: left; font-size: 14px; color: var(--sub); border-top: 1px solid var(--line); padding-top: 10px; }
+#card .others.hide { display: none; }
+#card .others b { font-weight: 600; color: var(--text); font-size: 12px; padding-top: 2px; }
+.s-count { font-variant-numeric: tabular-nums; }
+.s-count .o { color: var(--ok); font-weight: 700; }
+.s-count .x { color: var(--ng); font-weight: 700; }
+.s-btns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 12px 16px; padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+.s-btns button { padding: 16px 0; font-size: 22px; font-weight: 700; }
+.s-btns .ng, .s-btns .ok { font-size: 28px; }
+.s-btns .ng { color: var(--ng); background: color-mix(in srgb, var(--ng) 7%, var(--panel)); border-color: color-mix(in srgb, var(--ng) 30%, var(--line)); }
+.s-btns .ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 7%, var(--panel)); border-color: color-mix(in srgb, var(--ok) 30%, var(--line)); }
+.h-slow { color: var(--warn); font-weight: 700; margin-left: 4px; }
+.keys { font-size: 11px; color: var(--sub); font-weight: 400; display: block; }
+@media (hover: none) { .keys { display: none; } }
+
+/* 一覧 */
+table.words { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.words th, table.words td { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+table.words th { position: sticky; top: 0; background: var(--panel); cursor: pointer; white-space: nowrap; }
+table.words td.n { color: var(--sub); font-variant-numeric: tabular-nums; width: 3.5em; }
+.st { font-size: 11px; padding: 2px 6px; border-radius: 99px; white-space: nowrap; }
+.st-new { background: var(--chip); color: var(--sub); }
+.st-done { background: var(--ph3); color: #fff; }
+.wrongs { color: var(--ng); font-weight: 600; }
+.list-scroll { max-height: calc(100vh - 230px); overflow: auto; }
+@media (max-width: 520px) { .list-scroll th:nth-child(6), .list-scroll td:nth-child(6) { display: none; } table.words td, table.words th { padding: 6px 4px; } }
+ul.ng-list { list-style: none; padding: 0; margin: 0; }
+ul.ng-list li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+kbd { background: var(--chip); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; font-size: 12px; }
+/* 進捗グラフ */
+:root { --ph0: #86b6ef; --ph1: #3987e5; --ph2: #1c5cab; --ph3: #0d366b; --seq-done: #0d366b; --track: #e6e8ec; }
+.stack { display: flex; gap: 2px; height: 14px; border-radius: 4px; overflow: hidden; background: var(--track); }
+.stack i { display: block; height: 100%; }
+
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--sub); margin: 6px 0 4px; }
+.legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
+.blocks { display: grid; grid-template-columns: auto 1fr auto; gap: 5px 8px; align-items: center; font-size: 12px; font-variant-numeric: tabular-nums; }
+.blocks .lab { color: var(--sub); text-align: right; }
+.blocks .pct { color: var(--sub); min-width: 3em; text-align: right; }
+.blocks .stack { height: 12px; }
+.bars { display: flex; align-items: flex-end; gap: 2px; height: 140px; border-bottom: 1px solid var(--line); position: relative; }
+.bars .col { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; cursor: default; }
+.bars .col:hover { background: var(--chip); }
+.bars .col i { display: block; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 0; }
+.bars .col i.today { background: var(--seq-done); }
+.xaxis { display: flex; justify-content: space-between; font-size: 11px; color: var(--sub); margin-top: 4px; }
+.gridline { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line); font-size: 10px; color: var(--sub); pointer-events: none; }
+.gridline span { position: absolute; left: 0; top: -14px; }
+.line-wrap { position: relative; height: 140px; border-bottom: 1px solid var(--line); }
+.line-wrap svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.line-wrap .hit { position: absolute; top: 0; bottom: 0; }
+.line-wrap .hit:hover { background: color-mix(in srgb, var(--chip) 70%, transparent); }
+#tip { position: fixed; z-index: 20; background: var(--text); color: #fff; font-size: 12px; padding: 6px 9px; border-radius: 8px; pointer-events: none; display: none; white-space: nowrap; line-height: 1.5; }
+.drill-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.drill-chips button { padding: 8px 12px; font-size: 14px; }
+.drill-chips button b { font-variant-numeric: tabular-nums; margin-left: 4px; }
+.drill-chips .sep { width: 100%; height: 0; }
+#pgLaps td { vertical-align: middle; }
+#pgLaps button { padding: 3px 10px; font-size: 13px; }
+.h-ok { color: var(--ok); }
+.h-ng { color: var(--ng); font-weight: 700; }
+td.hist { letter-spacing: 1px; white-space: nowrap; font-size: 13px; }
+.st-p0 { background: #e3eefc; color: #1c5cab; }
+.st-p1 { background: #d2e3fa; color: #1c5cab; }
+.st-p2 { background: #bcd4f5; color: #0d366b; }
+.modal { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 30; }
+.modal[hidden] { display: none; }
+.modal-box { background: var(--panel); border-radius: 14px; padding: 18px; max-width: 420px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,.2); }
+.modal-box p { margin: 0 0 16px; line-height: 1.6; }
+.sync-badge { font-size: 12px; color: var(--sub); background: var(--chip); padding: 4px 10px; border-radius: 99px; white-space: nowrap; }
+.sync-badge.err { color: var(--ng); }
+#card .say { margin: -8px 0 14px; padding: 6px 14px; font-size: 14px; color: var(--accent); border-color: var(--line); }
+.goal { display: grid; gap: 6px; margin: 0 0 14px; font-size: 14px; }
+.goal .line { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.goal .meter { height: 10px; border-radius: 5px; background: var(--track); overflow: hidden; }
+.goal .meter i { display: block; height: 100%; background: var(--accent); border-radius: 5px; }
+.goal .meter.done i { background: var(--ok); }
+.goal .exam { color: var(--sub); font-size: 13px; }
+.seg { display: inline-flex; background: var(--chip); border-radius: 12px; padding: 4px; gap: 4px; margin-bottom: 14px; }
+.seg button { border: 0; background: transparent; padding: 8px 16px; border-radius: 9px; color: var(--sub); font-weight: 600; }
+.seg button.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 3px rgba(16, 24, 40, .12); }
+.blocks .lab { white-space: nowrap; }
+#card .notes { margin-top: 12px; display: grid; grid-template-columns: max-content 1fr; gap: 6px 10px; max-width: 600px; width: 100%;
+  text-align: left; font-size: 14px; line-height: 1.5; border-top: 1px dashed var(--line); padding-top: 10px; }
+#card .notes.hide { display: none; }
+#card .notes b { font-size: 12px; font-weight: 600; color: var(--accent); padding-top: 2px; }
+#card .notes .exen { display: block; font-family: 'Source Serif 4', Georgia, serif; font-size: 15px; cursor: pointer; text-decoration: underline dotted var(--sub); text-underline-offset: 3px; }
+#card .notes .exja { display: block; color: var(--sub); font-size: 13px; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; }
+.toast.on { opacity: .92; }
+#study.on ~ .toast { bottom: calc(110px + env(safe-area-inset-bottom, 0px)); }
+.empty { text-align: center; color: var(--sub); padding: 30px 0; }
+</style>
+</head>
+<body>
+
+<!-- ホーム -->
+<section id="home" class="view wrap">
+  <header class="top">
+    <h1>単語スプリント</h1>
+    <span class="sync-badge" id="syncBadge" hidden></span>
+    <button onclick="show('settings')">設定</button>
+  </header>
+  <div class="panel" id="noDeck" hidden>
+    <p id="noDeckMsg">まだ単語帳がありません。もらったスターターファイル（word-sprint-starter.json）を読み込むか、CSVを取り込んで始めましょう。</p>
+    <div class="row">
+      <button class="primary" id="bundleBtn" hidden onclick="importBundle()"></button>
+      <button class="primary" onclick="$('restoreFile').click()">スターターファイルを読み込む</button>
+      <button onclick="show('import')">CSVを取り込む</button>
+    </div>
+  </div>
+  <div id="deckArea" hidden>
+    <div class="panel">
+      <div class="row">
+        <select id="deckSel" class="grow" onchange="selectDeck(this.value)"></select>
+        <button onclick="show('import')">＋取り込み</button>
+      </div>
+      <div class="stats" id="homeStats"></div>
+      <div id="homeBar" style="margin:-2px 0 14px"></div>
+      <div id="goalBox" class="goal"></div>
+      <button class="primary big-btn" id="startBtn" onclick="startSession('normal')">開始</button>
+      <p class="sub" id="startNote" style="margin:8px 0 0"></p>
+    </div>
+    <div class="panel" id="drillPanel">
+      <h2>弱点特訓 <span class="sub" style="font-weight:400">（スケジュールには影響しません）</span></h2>
+      <div class="drill-chips" id="drillChips"></div>
+    </div>
+    <div class="btn-grid">
+      <button onclick="show('progress')">進捗グラフ</button>
+      <button onclick="show('list')">単語一覧</button>
+    </div>
+  </div>
+</section>
+
+<!-- 取り込み -->
+<section id="import" class="view wrap">
+  <header class="top"><button onclick="show('home')">← 戻る</button><h1>単語帳の取り込み</h1></header>
+  <div class="panel">
+    <label class="field"><span>単語帳の名前</span><input id="impName" placeholder="例：鉄壁" list="deckNames"></label>
+    <datalist id="deckNames"></datalist>
+    <p class="hint">既存の単語帳と同じ名前にすると上書き更新します（「番号+英語」が同じ語の学習履歴は残ります）。</p>
+    <div class="row" style="margin:12px 0"><input type="file" id="impFile" accept=".csv,.tsv,.txt,text/csv,text/plain"></div>
+    <textarea id="impText" rows="8" style="width:100%" placeholder="またはここに貼り付け（Excelからのコピペも可）&#10;1,vital,非常に重要な&#10;2,vivid,生き生きとした"></textarea>
+    <p class="hint">列は「番号, 英語, 日本語訳」。カンマ区切り／タブ区切りは自動判定。1行目が見出しなら自動で飛ばします。番号がない2列の場合は上から連番をつけます。</p>
+    <p id="impPreview" class="sub"></p>
+    <button class="primary" onclick="doImport()">取り込む</button>
+  </div>
+  <div class="panel">
+    <h2>覚え方（語源・イメージ・例文）</h2>
+    <p class="sub" id="noteStatus"></p>
+    <p class="hint">1. 依頼文を作って Gemini に貼る → 2. 返ってきた表をそのまま下に貼って取り込む。英語ごとに1回作れば全単語帳で使えます。</p>
+    <div class="row" style="margin:10px 0">
+      <label class="row sub">1回に<input type="number" id="noteSize" value="150" min="10" max="300" style="width:80px">語</label>
+      <button onclick="makeNoteRequest()">依頼文を作る</button>
+      <button onclick="copyNoteRequest()">コピー</button>
+    </div>
+    <p class="sub" id="noteReqInfo"></p>
+    <textarea id="noteReq" rows="5" style="width:100%" readonly placeholder="「依頼文を作る」を押すと、ここに Gemini への依頼文が入ります"></textarea>
+    <div class="row" style="margin-top:10px"><span class="sub">ファイルで取り込む（notes.tsv など）</span><input type="file" id="noteFile" accept=".tsv,.txt,.csv,text/plain"></div>
+    <textarea id="noteText" rows="6" style="width:100%;margin-top:10px" placeholder="Gemini の答え（英語・語源・覚え方・例文・例文訳のタブ区切り）をここに貼り付け"></textarea>
+    <button class="primary" style="margin-top:8px" onclick="importNotes()">覚え方を取り込む</button>
+  </div>
+</section>
+
+<!-- 単語一覧 -->
+<section id="progress" class="view wrap">
+  <header class="top"><button onclick="show('home')">← 戻る</button><h1 id="progTitle">進捗</h1></header>
+  <div class="seg" id="pgScope" role="tablist">
+    <button type="button" data-s="deck" onclick="setPgScope('deck')">この単語帳</button>
+    <button type="button" data-s="all" onclick="setPgScope('all')">全単語帳</button>
+  </div>
+  <div class="panel">
+    <h2>全体</h2>
+    <div id="pgOverall"></div>
+  </div>
+  <div class="panel">
+    <h2>学習数（直近30日）</h2>
+    <p class="sub" id="pgDailySum" style="margin:-4px 0 12px"></p>
+    <div id="pgDaily"></div>
+  </div>
+  <div class="panel">
+    <h2>完璧な語数の推移（直近30日）</h2>
+    <div id="pgDone"></div>
+  </div>
+  <div class="panel">
+    <h2 id="pgBlocksTitle">番号ごとの状況（100語ずつ）</h2>
+    <div id="pgBlocksLegend"></div>
+    <div class="blocks" id="pgBlocks"></div>
+  </div>
+</section>
+<div id="tip"></div>
+
+<section id="list" class="view wrap">
+  <header class="top"><button onclick="show('home')">← 戻る</button><h1 id="listTitle">単語一覧</h1></header>
+  <div class="panel">
+    <div class="row" style="margin-bottom:10px">
+      <input id="q" class="grow" placeholder="検索（英語・日本語・番号）" oninput="renderList()">
+      <select id="stFilter" onchange="renderList()"></select>
+      <select id="sortSel" onchange="renderList()">
+        <option value="no">番号順</option><option value="wrong">×回数順</option><option value="due">次回日順</option>
+      </select>
+    </div>
+    <p class="sub" id="listCount"></p>
+    <div class="list-scroll"><table class="words"><thead><tr><th>No</th><th>英語</th><th>意味</th><th>状態</th><th>履歴</th><th>次回</th></tr></thead><tbody id="listBody"></tbody></table></div>
+  </div>
+</section>
+
+<!-- 設定 -->
+<section id="settings" class="view wrap">
+  <header class="top"><button onclick="show('home')">← 戻る</button><h1>設定</h1></header>
+  <div class="panel" id="deckSettings">
+    <h2>この単語帳（<span id="setDeckName"></span>）</h2>
+    <label class="field"><span>1セットの新出語数<br><span class="hint">1日の上限はなし。0 = 残り全部を1セットに</span></span><input type="number" min="0" id="setNewPerDay"></label>
+    <label class="field"><span>出題する番号の範囲<br><span class="hint">空欄 = 全範囲（新出語に適用）</span></span>
+      <span class="row"><input type="number" id="setFrom" style="width:80px" placeholder="最初">〜<input type="number" id="setTo" style="width:80px" placeholder="最後"></span></label>
+    <label class="field"><span>出題順</span><select id="setOrder"><option value="no">番号順</option><option value="random">ランダム</option></select></label>
+    <label class="field"><span>1日の目標語数<br><span class="hint">復習と新出の合計。0 = 表示しない</span></span><input type="number" min="0" id="setGoal"></label>
+    <label class="field"><span>試験日<br><span class="hint">入れると、1日に進める新出の目安を表示</span></span><input type="date" id="setExam"></label>
+    <div class="row" style="margin-top:10px"><button class="danger" onclick="deleteDeck()">この単語帳を削除</button></div>
+  </div>
+  <div class="panel">
+    <h2>全体</h2>
+    <label class="field"><span>初見で○だった語の次回<br><span class="hint">日後（段階：1→3→7→14→30→60日）</span></span><input type="number" min="1" id="setFirstKnown"></label>
+    <label class="field"><span>迷った語とみなす秒数<br><span class="hint">○を押すまでこの秒数を超えた語、意味を見てから○にした語を「迷った語」に。0 = 使わない</span></span><input type="number" min="0" max="20" id="setSlow"></label>
+    <label class="field"><span>×の語を当日のセッション末尾にもう一度出す<br><span class="hint">2回目の判定はスケジュールに影響しません</span></span><input type="checkbox" id="setRetry"></label>
+    <label class="field"><span>意味と一緒に覚え方（語源・イメージ・例文）を出す</span><input type="checkbox" id="setShowNotes"></label>
+    <label class="field"><span>×をつけた語を自動で読み上げる</span><input type="checkbox" id="setSpeakWrong"></label>
+    <label class="field"><span>単語が出たら自動で読み上げる<br><span class="hint">オフでもカードの「発音」ボタンか S キーで聞ける</span></span><input type="checkbox" id="setTts"></label>
+    <label class="field"><span>読み上げの声</span><select id="setVoice" style="max-width:60%"></select></label>
+    <label class="field"><span>読み上げの速さ <span class="sub" id="rateLabel"></span></span><input type="range" id="setRate" min="0.6" max="1.3" step="0.05"></label>
+    <div class="row" style="padding:8px 0"><button onclick="speak('vulnerable')">試しに聞く（vulnerable）</button></div>
+    <p class="hint" id="voiceHelp" hidden>この端末には英語の音声が入っていません。Windows：設定 → 時刻と言語 → 音声 → 「音声の追加」で「English (United States)」を追加。または Chrome で開くと Google の英語音声が使えます。iPhone・Android は最初から入っています。</p>
+    <label class="field"><span>他の単語帳で完璧な語をスキップ<br><span class="hint">同じ英語が別の単語帳で完璧なら、新出で出さずに完璧にする（30日後の復習には出る）</span></span><input type="checkbox" id="setSkipKnown"></label>
+  </div>
+  <div class="panel">
+    <h2>キーボード操作</h2>
+    <table class="words">
+      <tr><td><kbd>→</kbd> / <kbd>J</kbd> ／ 右スワイプ</td><td>わかる（○）…意味を見ずに次へ</td></tr>
+      <tr><td><kbd>←</kbd> / <kbd>F</kbd> ／ 左スワイプ</td><td>わからない（×）…意味を表示</td></tr>
+      <tr><td><kbd>Space</kbd> ／ タップ</td><td>意味を表示（×後は次へ）</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td>×後に次へ</td></tr>
+      <tr><td><kbd>Z</kbd> / <kbd>Backspace</kbd></td><td>直前の判定を取り消す</td></tr>
+      <tr><td><kbd>S</kbd></td><td>読み上げ</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>セッションを終了</td></tr>
+    </table>
+  </div>
+  <div class="panel">
+    <h2>バックアップ</h2>
+    <div class="row">
+      <button onclick="exportJson()">JSONエクスポート</button>
+      <button onclick="document.getElementById('restoreFile').click()">JSONインポート（全置換）</button>
+      <input type="file" id="restoreFile" accept=".json,application/json" hidden onchange="importJson(this.files[0])">
+    </div>
+  </div>
+  <div class="panel">
+    <h2>デバッグ</h2>
+    <p class="sub">アプリ内の「今日」：<b id="dbgDate"></b>（日付の切り替わりは午前4時）</p>
+    <div class="row">
+      <button onclick="shiftDay(1)">日付を1日進める</button>
+      <button onclick="shiftDay(-1)">1日戻す</button>
+      <button onclick="shiftDay(0)">実際の日付に戻す</button>
+    </div>
+  </div>
+</section>
+
+<!-- セッション終了 -->
+<section id="result" class="view wrap">
+  <header class="top"><h1>おつかれさま！</h1></header>
+  <div class="panel">
+    <div class="stats" id="resStats"></div>
+    <h2>今回×だった語</h2>
+    <ul class="ng-list" id="resNg"></ul>
+    <div class="row" style="margin-top:14px">
+      <button class="grow" onclick="show('home')">ホームへ</button>
+      <button class="grow" id="retryNgBtn" onclick="startSession('drill', 'lastNg')">今回の×をもう一度</button>
+      <button class="primary grow" id="nextSetBtn" onclick="startSession('normal')">続けて次へ</button>
+    </div>
+  </div>
+</section>
+
+<!-- 学習画面 -->
+<div id="study">
+  <div class="s-top">
+    <div class="row">
+      <button onclick="endSession()">終了</button>
+      <span class="grow sub" id="sInfo" style="text-align:center"></span>
+      <span class="sub s-count" id="sCount"></span>
+      <button onclick="undo()" id="undoBtn" title="Z / Backspace">↶ 取消</button>
+    </div>
+    <div class="s-bar"><i id="sBar"></i></div>
+  </div>
+  <div id="card">
+    <div class="sheet">
+      <span class="mark" id="cMark"></span>
+      <div class="no" id="cNo"></div>
+      <div class="en" id="cEn"></div>
+      <button class="say" id="sayBtn" type="button" aria-label="発音を聞く">発音</button>
+      <div class="ja hide" id="cJa"></div>
+      <div class="others hide" id="cOthers"></div>
+      <div class="notes hide" id="cNotes"></div>
+      <span class="tag" id="cTag" style="margin-top:14px"></span>
+    </div>
+  </div>
+  <div class="s-btns">
+    <button class="ng" onclick="judge(false)">×<span class="keys">← / F</span></button>
+    <button id="midBtn" onclick="tapAction()">意味<span class="keys">Space</span></button>
+    <button class="ok" onclick="judge(true)">○<span class="keys">→ / J</span></button>
+  </div>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalMsg">
+    <p id="modalMsg"></p>
+    <div class="row" style="justify-content:flex-end">
+      <button id="modalNo">キャンセル</button>
+      <button id="modalYes" class="primary"></button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+// ===== 定数・スケジュール =====
+const INTERVALS = [1, 3, 7, 14, 30, 60];
+// ×をつけたことがある語は、×で段階0（フェーズ0）に戻り、○が3回続いて段階3になったら「完璧」
+const PERFECT_STAGE = 3;
+const STATUS = {
+  new: { label: '未学習', color: 'var(--track)' },
+  p0: { label: 'フェーズ0', color: 'var(--ph0)' },
+  p1: { label: 'フェーズ1', color: 'var(--ph1)' },
+  p2: { label: 'フェーズ2', color: 'var(--ph2)' },
+  done: { label: '完璧', color: 'var(--ph3)' },
+};
+const STATUS_ORDER = ['done', 'p2', 'p1', 'p0', 'new'];
+const DAY_MS = 864e5;
+const DEFAULT_GLOBAL = { showNotes: true, slowSec: 3, firstKnownDays: 30, retryToday: false, tts: false, speakWrong: true, skipKnown: true, dayOffset: 0, lastDeck: null };
+const DEFAULT_DECK_CFG = { newPerDay: 100, from: null, to: null, order: 'no', goal: 200, examDate: '' };
+
+// 午前4時区切りのローカル日付を「日番号」にする
+function dayNumber(ts) {
+  const d = new Date(ts - 4 * 3600e3);
+  return Math.floor((d.getTime() - d.getTimezoneOffset() * 6e4) / DAY_MS);
+}
+function today() { return dayNumber(Date.now()) + (G.dayOffset || 0); }
+function dayStr(n) { return new Date(n * DAY_MS).toISOString().slice(0, 10); }
+function relDay(n) { const d = n - today(); return d <= 0 ? '今日' : d === 1 ? '明日' : d + '日後'; }
+
+// ○×を受けて次の学習記録を返す（純粋関数）
+function schedule(prev, ok, day, firstKnownDays) {
+  const r = prev ? { ...prev } : { stage: 0, due: day, wrong: 0, right: 0, first: day };
+  if (ok) {
+    r.right++;
+    if (!prev) {
+      const d = Math.max(1, firstKnownDays);
+      let s = INTERVALS.findIndex(v => v >= d);
+      r.stage = s < 0 ? INTERVALS.length - 1 : s;
+      r.due = day + d;
+    } else {
+      r.stage = Math.min(r.stage + 1, INTERVALS.length - 1);
+      r.due = day + INTERVALS[r.stage];
+    }
+  } else {
+    r.wrong++;
+    r.stage = 0;
+    r.due = day + 1;
+  }
+  r.h = (r.h || '') + (ok ? '1' : '0'); // ○×の履歴。n文字目 = n周目
+  r.last = day;
+  return r;
+}
+function statusOf(rec) {
+  if (!rec) return 'new';
+  if (!rec.wrong || rec.stage >= PERFECT_STAGE) return 'done'; // 一度も×がない語は初見○の時点で完璧
+  return 'p' + rec.stage;
+}
+// n周目（1始まり）に×だったか
+const wrongAtLap = (rec, n) => rec?.h?.[n - 1] === '0';
+const histHtml = h => (h || '').split('').map(c => c === '1' ? '<span class="h-ok">○</span>' : '<span class="h-ng">×</span>').join('');
+// 履歴を持たない古い記録は、×→○の順だったとみなして補う
+function fillHistory(r) {
+  if (r.h == null) r.h = '0'.repeat(r.wrong || 0) + '1'.repeat(r.right || 0);
+  return r;
+}
+const wordKey = w => w.no + '|' + w.en;
+
+// ===== IndexedDB =====
+let idb;
+function openDb() {
+  return new Promise((res, rej) => {
+    const rq = indexedDB.open('word-sprint', 1);
+    rq.onupgradeneeded = () => {
+      const d = rq.result;
+      d.createObjectStore('decks', { keyPath: 'id' });
+      d.createObjectStore('progress', { keyPath: 'id' }).createIndex('deck', 'deck');
+      d.createObjectStore('meta', { keyPath: 'k' });
+    };
+    rq.onsuccess = () => {
+      const d = rq.result;
+      // 別タブでの削除・更新やブラウザ都合で接続が閉じられたら、次の読み書きでつなぎ直す
+      d.onversionchange = () => { d.close(); if (idb === d) idb = null; };
+      d.onclose = () => { if (idb === d) idb = null; };
+      res(d);
+    };
+    rq.onerror = () => rej(rq.error);
+    rq.onblocked = () => toast('他のタブでこのアプリを閉じてください');
+  });
+}
+async function tx(store, mode, fn, retried = false) {
+  if (!idb) idb = await openDb();
+  try {
+    return await new Promise((res, rej) => {
+      const t = idb.transaction(store, mode);
+      const out = fn(t.objectStore(store));
+      t.oncomplete = () => res(out && 'result' in out ? out.result : undefined);
+      t.onerror = () => rej(t.error);
+      t.onabort = () => rej(t.error || new Error('保存が中断されました'));
+    });
+  } catch (e) {
+    if (retried || e.name !== 'InvalidStateError') throw e;
+    idb = null; // 接続が閉じていた → 開き直して1回だけやり直す
+    return tx(store, mode, fn, true);
+  }
+}
+const dbGetAll = (s) => tx(s, 'readonly', st => st.getAll());
+const dbPut = (s, v) => tx(s, 'readwrite', st => st.put(v));
+const dbDel = (s, k) => tx(s, 'readwrite', st => st.delete(k));
+const dbGet = (s, k) => tx(s, 'readonly', st => st.get(k));
+function dbDeckProgress(deckId) { return tx('progress', 'readonly', st => st.index('deck').getAll(deckId)); }
+
+// ===== 状態 =====
+let G = { ...DEFAULT_GLOBAL };
+let decks = [];          // [{id,name,words:[{no,en,ja}],cfg}]
+let deck = null;         // 選択中
+let prog = new Map();    // wordKey -> record
+let studyDays = [];      // 学習した日番号
+let dayLog = {};         // 選択中の単語帳の日別記録 { 日番号: { ok, ng, done } }
+
+async function saveGlobal() { await dbPut('meta', { k: 'global', v: G }); }
+async function saveDeck(d, wordsChanged = false) {
+  d.updated = Date.now();
+  await dbPut('decks', d);
+  pushDeck(d, wordsChanged);
+}
+// メモリ上の記録は即座に更新し、DB書き込みは裏で行う（連打しても判定がずれないように）
+function putProgress(key, rec) {
+  const id = deck.id + '\t' + key;
+  if (rec) { rec.t = Date.now(); prog.set(key, rec); } else prog.delete(key);
+  const p = rec ? dbPut('progress', { ...rec, id, deck: deck.id, key }) : dbDel('progress', id);
+  p.catch(e => toast('保存に失敗しました：' + e.message));
+  queueProgPush(deck.id, key, rec);
+}
+function masteredCount() {
+  let n = 0;
+  for (const w of deck.words) if (statusOf(prog.get(wordKey(w))) === 'done') n++;
+  return n;
+}
+// 日別記録を更新（delta = +1 で記録、-1 で取り消し）
+function logAnswer(ok, delta) {
+  const t = today();
+  const e = dayLog[t] || (dayLog[t] = { ok: 0, ng: 0, done: 0 });
+  e[ok ? 'ok' : 'ng'] = Math.max(0, e[ok ? 'ok' : 'ng'] + delta);
+  e.done = masteredCount();
+  dbPut('meta', { k: 'log:' + deck.id, v: dayLog }).catch(() => {});
+  queueMetaPush(SP.log(deck.id), { ['d' + t]: e });
+}
+async function markStudied() {
+  const t = today();
+  if (!studyDays.includes(t)) {
+    studyDays.push(t); await dbPut('meta', { k: 'studyDays', v: studyDays });
+    queueMetaPush(SP.days(), { ['d' + t]: 1 });
+  }
+}
+function streak() {
+  const set = new Set(studyDays);
+  let d = today();
+  if (!set.has(d)) d--;
+  let n = 0;
+  while (set.has(d)) { n++; d--; }
+  return n;
+}
+
+async function init() {
+  if (!idb) idb = await openDb();
+  const g = await dbGet('meta', 'global');
+  if (g) G = { ...DEFAULT_GLOBAL, ...g.v };
+  const sd = await dbGet('meta', 'studyDays');
+  studyDays = sd ? sd.v : [];
+  decks = (await dbGetAll('decks')).sort((a, b) => a.created - b.created);
+  await loadNotes();
+  const id = decks.find(d => d.id === G.lastDeck) ? G.lastDeck : decks[0]?.id;
+  if (id) await selectDeck(id, false);
+  show('home');
+}
+
+async function selectDeck(id, save = true) {
+  deck = decks.find(d => d.id === id);
+  deck.cfg = { ...DEFAULT_DECK_CFG, ...deck.cfg };
+  prog = new Map((await dbDeckProgress(id)).map(r => [r.key, fillHistory(r)]));
+  G.lastDeck = id;
+  const lg = await dbGet('meta', 'log:' + id);
+  dayLog = lg ? lg.v : {};
+  lastSkipped = await skipKnownElsewhere();
+  watchDeckProgress(id);
+  if (save) { await saveGlobal(); renderHome(); }
+}
+
+// ===== 単語帳をまたいだ既知語スキップ =====
+let lastSkipped = 0; // 直近の単語帳選択でスキップした語数（取り込み時の通知用）
+// 英語の表記ゆれ（大文字小文字・～・カッコ・余分な空白）をそろえて比べる
+const normEn = en => en.toLowerCase().replace(/[～~〜]/g, ' ').replace(/\(.*?\)|（.*?）/g, ' ').replace(/\s+/g, ' ').trim();
+// 他の単語帳で「完璧」な語が、この単語帳でまだ未学習なら、出題せずに完璧として記録する
+async function skipKnownElsewhere() {
+  if (!G.skipKnown || !deck) return 0;
+  const names = Object.fromEntries(decks.map(d => [d.id, d.name]));
+  const known = new Map();
+  for (const r of await dbGetAll('progress')) {
+    if (r.deck === deck.id || !names[r.deck] || statusOf(fillHistory(r)) !== 'done') continue;
+    known.set(normEn(r.key.slice(r.key.indexOf('|') + 1)), names[r.deck]);
+  }
+  const t = today(), recs = [];
+  for (const w of deck.words) {
+    const key = wordKey(w), from = known.get(normEn(w.en));
+    if (!from || prog.has(key)) continue;
+    const r = { ...schedule(null, true, t, G.firstKnownDays), right: 0, h: '', auto: from, t: Date.now() };
+    prog.set(key, r);
+    recs.push({ ...r, id: deck.id + '\t' + key, deck: deck.id, key });
+  }
+  if (recs.length) {
+    await tx('progress', 'readwrite', st => recs.forEach(r => st.put(r)));
+    recs.forEach(r => queueProgPush(deck.id, r.key, r));
+    toast(`他の単語帳で完璧な ${recs.length}語をスキップしました`);
+  }
+  return recs.length;
+}
+
+// ===== 画面切替 =====
+function show(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === name));
+  document.getElementById('study').classList.remove('on');
+  ({ home: renderHome, progress: renderProgress, list: renderList, settings: renderSettings, import: renderImport }[name] || (() => {}))();
+  window.scrollTo(0, 0);
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 1800);
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const $ = id => document.getElementById(id);
+
+// ===== 今日のキュー =====
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function orderWords(ws) { return deck.cfg.order === 'random' ? shuffle(ws.slice()) : ws.slice().sort((a, b) => a.no - b.no); }
+function inRange(w) {
+  const { from, to } = deck.cfg;
+  return (from == null || w.no >= from) && (to == null || w.no <= to);
+}
+function todayPlan() {
+  const t = today();
+  const due = deck.words.filter(w => { const r = prog.get(wordKey(w)); return r && r.due <= t; });
+  const unlearned = deck.words.filter(w => !prog.has(wordKey(w)));
+  // 新出は1日の上限なし。「1セットの新出語数」ずつ出し、終わったら次のセットを何度でも始められる
+  const candidates = orderWords(unlearned.filter(inRange));
+  const fresh = deck.cfg.newPerDay > 0 ? candidates.slice(0, deck.cfg.newPerDay) : candidates;
+  return { due: orderWords(due), fresh, unlearned: unlearned.length, restInRange: candidates.length };
+}
+
+// 同じ英語が他の単語帳にあれば、その訳を並べる（単語帳の変更があれば作り直す）
+let meaningIndex = null, meaningIndexKey = '';
+function otherMeanings(w) {
+  const k = decks.map(d => d.id + ':' + (d.updated || 0) + ':' + d.words.length).join(',');
+  if (k !== meaningIndexKey) {
+    meaningIndex = new Map();
+    for (const d of decks) for (const x of d.words) {
+      const n = normEn(x.en);
+      if (!meaningIndex.has(n)) meaningIndex.set(n, []);
+      meaningIndex.get(n).push({ id: d.id, name: d.name, ja: x.ja });
+    }
+    meaningIndexKey = k;
+  }
+  return (meaningIndex.get(normEn(w.en)) || []).filter(o => o.id !== deck.id);
+}
+
+// ===== 覚え方（語源・イメージ・例文） =====
+// 英語ごとに1つ持ち、全単語帳で共通に使う。中身は Gemini などで作って取り込む。
+// notes: 正規化した英語 → { e: 語源, i: 覚え方, x: 例文, xj: 例文訳, t: 更新時刻 }
+let notes = new Map();
+async function loadNotes() {
+  const m = await dbGet('meta', 'notes');
+  notes = new Map(Object.entries(m?.v || {}));
+}
+async function saveNotes() { await dbPut('meta', { k: 'notes', v: Object.fromEntries(notes) }); }
+const noteOf = w => notes.get(normEn(w.en));
+
+function renderNotes(w, show) {
+  const n = G.showNotes !== false && noteOf(w);
+  const el = $('cNotes');
+  el.classList.toggle('hide', !show || !n);
+  if (!n) { el.innerHTML = ''; return; }
+  const row = (label, v) => v && v !== '-' ? `<b>${label}</b><span>${esc(v)}</span>` : '';
+  el.innerHTML = row('語源', n.e) + row('覚え方', n.i) +
+    (n.x ? `<b>例文</b><span><span class="exen" role="button" tabindex="0" title="タップで読み上げ">${esc(n.x)}</span>${n.xj ? `<span class="exja">${esc(n.xj)}</span>` : ''}</span>` : '');
+}
+
+// 取り込み：英語, 語源, 覚え方, 例文, 例文訳（先頭に番号の列があってもよい）
+$('noteFile').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  $('noteText').value = await f.text();
+  e.target.value = '';
+  await importNotes();
+});
+async function importNotes() {
+  const rows = parseDelimited($('noteText').value);
+  let added = 0, unknown = 0;
+  const known = new Set(decks.flatMap(d => d.words.map(w => normEn(w.en))));
+  for (let r of rows) {
+    if (/^\d+$/.test(r[0]) && r.length >= 6) r = r.slice(1);
+    const [en, e = '', i = '', x = '', xj = ''] = r;
+    if (!en || /^(英語|word|english)$/i.test(en)) continue;
+    const key = normEn(en);
+    if (!known.has(key)) { unknown++; continue; }
+    const note = { e, i, x, xj, t: Date.now() };
+    notes.set(key, note);
+    queueNotePush(key, note);
+    added++;
+  }
+  await saveNotes();
+  $('noteText').value = '';
+  renderNotesPanel();
+  toast(`${added}語の覚え方を取り込みました` + (unknown ? `（単語帳にない語 ${unknown}件は飛ばしました）` : ''));
+}
+
+// Gemini への依頼文：覚え方がまだない語を、×・迷った語から優先して並べる
+async function notesTargets() {
+  const weak = new Set();
+  for (const r of await dbGetAll('progress')) if (r.wrong > 0 || r.slow === 1) weak.add(normEn(r.key.slice(r.key.indexOf('|') + 1)));
+  const seen = new Set(), first = [], rest = [];
+  for (const d of decks) for (const w of d.words) {
+    const k = normEn(w.en);
+    if (seen.has(k) || notes.has(k)) continue;
+    seen.add(k);
+    (weak.has(k) ? first : rest).push(w);
+  }
+  return { list: [...first, ...rest], weak: first.length };
+}
+const NOTE_PROMPT = `あなたは日本の高校生向け英単語教材の編集者です。次の英単語それぞれについて、覚えやすくするための情報を作ってください。
+
+出力はタブ区切り（TSV）で、1行に1語、見出し行なし、次の5列だけにしてください：
+英語<TAB>語源<TAB>覚え方<TAB>例文<TAB>例文訳
+
+- 英語：入力の英語をそのまま（つづり・記号・～も変えない）
+- 語源：接頭辞・語根・接尾辞に分けて意味を書く（例：in(中へ)+spect(見る)+ion(名詞)）。はっきりしない場合は「-」
+- 覚え方：意味が一瞬でイメージできる短い説明や連想（40字以内）。語呂合わせより、語源や情景のイメージを優先
+- 例文：意味の欄の用法に合った、短く自然な英文（12語以内）
+- 例文訳：例文の自然な日本語訳
+- 意味の欄は参考です。出力には含めないでください
+- コードブロックや説明文は付けず、TSVの行だけを出力してください
+
+英語\t意味
+`;
+async function makeNoteRequest() {
+  const size = Math.max(10, Math.min(300, +$('noteSize').value || 150));
+  const { list } = await notesTargets();
+  const part = list.slice(0, size);
+  if (!part.length) { $('noteReq').value = ''; return toast('すべての語に覚え方があります'); }
+  $('noteReq').value = NOTE_PROMPT + part.map(w => `${w.en}\t${w.ja}`).join('\n');
+  $('noteReqInfo').textContent = `${part.length}語ぶんの依頼文です。コピーして Gemini に貼り、返ってきた表を下に貼って取り込んでください。`;
+}
+async function copyNoteRequest() {
+  const t = $('noteReq');
+  if (!t.value) return;
+  try { await navigator.clipboard.writeText(t.value); toast('コピーしました'); }
+  catch { t.focus(); t.select(); toast('選択しました。Ctrl+C（長押し→コピー）でコピーしてください'); }
+}
+async function renderNotesPanel() {
+  const total = new Set(decks.flatMap(d => d.words.map(w => normEn(w.en)))).size;
+  const { list, weak } = await notesTargets();
+  $('noteStatus').textContent = `覚え方あり ${total - list.length} / ${total}語` + (weak ? `（×・迷った語で未作成 ${weak}語を優先します）` : '');
+}
+
+// 同期：notes/b{0..31} に英語ごとの項目として置く
+const noteBucket = key => { let h = 0; for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return 'notes/b' + (h % 32); };
+const noteField = key => 'k' + encodeURIComponent(key).replace(/\./g, '%2E');
+function queueNotePush(key, note) { queueMetaPush(noteBucket(key), { [noteField(key)]: note }); }
+async function pullNotes() {
+  const snap = await Sync.db.collection('notes').get();
+  const seen = new Set();
+  let changed = false;
+  for (const doc of snap.docs) {
+    for (const [f, n] of Object.entries(doc.data()?.r || {})) {
+      const key = decodeURIComponent(f.slice(1));
+      seen.add(key);
+      const loc = notes.get(key);
+      if (!loc || (n.t || 0) > (loc.t || 0)) { notes.set(key, n); changed = true; }
+      else if ((loc.t || 0) > (n.t || 0)) queueNotePush(key, loc);
+    }
+  }
+  for (const [key, n] of notes) if (!seen.has(key)) queueNotePush(key, n);
+  if (changed) await saveNotes();
+}
+
+// ===== ホーム =====
+function renderHome() {
+  $('noDeck').hidden = decks.length > 0;
+  $('deckArea').hidden = decks.length === 0;
+  if (!deck) return;
+  $('deckSel').innerHTML = decks.map(d => `<option value="${d.id}" ${d.id === deck.id ? 'selected' : ''}>${esc(d.name)}（${d.words.length}語）</option>`).join('');
+  const p = todayPlan();
+  const total = deck.words.length;
+  const done = deck.words.filter(w => statusOf(prog.get(wordKey(w))) === 'done').length;
+  $('homeStats').innerHTML = [
+    [p.due.length, '今日の復習'], [p.restInRange, '残りの新出'], [p.unlearned, '未学習'],
+    [total ? Math.round(done / total * 100) + '%' : '-', `完璧（${done}/${total}）`], [streak() + '日', '連続学習'],
+  ].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+  $('homeBar').innerHTML = stackBar(countStatus(deck.words), 'ホーム') + legendHtml();
+  const n = p.due.length + p.fresh.length;
+  $('startBtn').disabled = n === 0;
+  $('startBtn').textContent = !n ? '今日の分は完了！'
+    : p.due.length ? `開始（復習${p.due.length}${p.fresh.length ? '＋新出' + p.fresh.length : ''}語）` : `開始（新出${p.fresh.length}語）`;
+  $('startNote').textContent = n === 0 && p.unlearned > 0 ? '出題範囲の未学習語はすべて終わりました（範囲は設定で変更）。'
+    : p.restInRange > p.fresh.length ? `終わったら次の${Math.min(deck.cfg.newPerDay, p.restInRange - p.fresh.length)}語へ何度でも続けられます。` : '';
+  renderDrillChips();
+  renderGoal(p);
+}
+
+// 試験日（YYYY-MM-DD）をアプリ内の日番号に
+const dateToDay = s => { const [y, m, d] = s.split('-').map(Number); return Math.floor(Date.UTC(y, m - 1, d) / DAY_MS); };
+// ×の語が完璧になるまで最短 1+3+7 = 11日かかるので、試験のその日数前に1周目を終える
+const PERFECT_MIN_DAYS = INTERVALS.slice(0, PERFECT_STAGE).reduce((a, b) => a + b, 0);
+function renderGoal(p) {
+  const done = (dayLog[today()]?.ok || 0) + (dayLog[today()]?.ng || 0), goal = deck.cfg.goal || 0;
+  let html = '';
+  if (goal > 0) {
+    const r = Math.min(1, done / goal);
+    html += `<div class="line"><b>今日の目標</b><span>${done} / ${goal}語${done >= goal ? '　達成！' : `　あと${goal - done}語`}</span></div>
+      <div class="meter ${done >= goal ? 'done' : ''}"><i style="width:${r * 100}%"></i></div>`;
+  }
+  if (deck.cfg.examDate) {
+    const left = dateToDay(deck.cfg.examDate) - today();
+    const firstLapDays = left - PERFECT_MIN_DAYS;
+    const pace = p.restInRange && firstLapDays > 0 ? Math.ceil(p.restInRange / firstLapDays) : 0;
+    const d = deck.cfg.examDate.split('-');
+    html += `<div class="exam">${left < 0 ? `試験日（${+d[1]}/${+d[2]}）を過ぎました。設定で変更できます。`
+      : `試験（${+d[1]}/${+d[2]}）まであと${left}日。` + (!p.restInRange ? '未学習の語はもうありません。'
+      : firstLapDays > 0 ? `未学習${p.restInRange}語を1日${pace}語ずつ進めると、試験の${PERFECT_MIN_DAYS}日前に1周できます。`
+      : `残り${p.restInRange}語。×の語を完璧にする時間が足りないので、今日から全部進めましょう。`)}</div>`;
+  }
+  $('goalBox').innerHTML = html;
+  $('goalBox').hidden = !html;
+}
+
+// 弱点特訓の絞り込み（一覧のフィルタと共通）
+function drillFilters() {
+  const recs = deck.words.map(w => prog.get(wordKey(w)));
+  const maxLap = Math.max(0, ...recs.map(r => r?.h?.length || 0));
+  const list = [{ id: 'wrong', label: '×あり', test: r => (r?.wrong || 0) > 0 },
+    { id: 'slow', label: '迷った語', test: r => r?.slow === 1 }];
+  for (let n = 1; n <= maxLap; n++) list.push({ id: 'lap' + n, label: `${n}周目×`, test: r => wrongAtLap(r, n) });
+  list.push({ sep: true });
+  for (const p of ['p0', 'p1', 'p2']) list.push({ id: p, label: STATUS[p].label, test: r => statusOf(r) === p });
+  return list;
+}
+function renderDrillChips() {
+  const chips = drillFilters().map(f => {
+    if (f.sep) return '<span class="sep"></span>';
+    const n = deck.words.filter(w => f.test(prog.get(wordKey(w)))).length;
+    return n ? `<button onclick="startSession('drill','${f.id}')">${f.label}<b>${n}</b></button>` : '';
+  }).join('');
+  $('drillPanel').hidden = !chips.replace(/<span class="sep"><\/span>/g, '');
+  $('drillChips').innerHTML = chips;
+}
+
+// ===== 学習セッション =====
+let S = null;
+let lastNg = []; // 直前のセッションで×だった語（結果画面から特訓する用）
+function startSession(mode, filterId = 'wrong') {
+  let items, drillLabel = '';
+  if (mode === 'drill' && filterId === 'lastNg') {
+    drillLabel = '今回の×';
+    items = lastNg.map(w => ({ w }));
+  } else if (mode === 'drill') {
+    const f = drillFilters().find(x => x.id === filterId);
+    if (!f) return;
+    drillLabel = f.label;
+    items = orderWords(deck.words.filter(w => f.test(prog.get(wordKey(w))))).map(w => ({ w }));
+  } else {
+    const p = todayPlan();
+    items = [...p.due.map(w => ({ w })), ...p.fresh.map(w => ({ w, isNew: true }))];
+  }
+  if (!items.length) return;
+  S = { mode, drillLabel, queue: items, i: 0, state: 'front', results: [], undo: [], start: Date.now(), baseLen: items.length };
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+  $('study').classList.add('on');
+  renderCard(true);
+}
+
+function renderCard(speakIt) {
+  const it = S.queue[S.i];
+  if (!it) return finishSession();
+  const rec = prog.get(wordKey(it.w));
+  $('cNo').textContent = 'No. ' + it.w.no;
+  $('cEn').textContent = it.w.en;
+  $('cJa').textContent = it.w.ja;
+  $('cJa').classList.toggle('hide', S.state === 'front');
+  const others = otherMeanings(it.w);
+  $('cOthers').innerHTML = others.map(o => `<b>${esc(o.name)}</b><span>${esc(o.ja)}</span>`).join('');
+  $('cOthers').classList.toggle('hide', S.state === 'front' || !others.length);
+  renderNotes(it.w, S.state !== 'front');
+  if (S.state === 'front' && S.shownFor !== S.i) { S.shownFor = S.i; S.shownAt = performance.now(); }
+  const shownRec = S.state === 'wrong' ? S.undo.at(-1)?.prev : rec; // ×直後は判定前の状態で表示
+  const st = statusOf(shownRec);
+  $('cTag').innerHTML = S.mode === 'drill' ? `特訓（${esc(S.drillLabel)}）・${STATUS[statusOf(rec)].label}　${histHtml(rec?.h)}`
+    : it.retry ? 'もう一度' : !shownRec ? '新出' : `${st === 'done' ? '復習' : STATUS[st].label}　${histHtml(shownRec.h)}`;
+  $('midBtn').firstChild.textContent = S.state === 'wrong' ? '次へ' : '意味';
+  $('cMark').textContent = S.state === 'wrong' ? '×' : '';
+  $('cMark').style.color = 'var(--ng)';
+  $('card').classList.toggle('flash-ng', S.state === 'wrong');
+  $('card').classList.remove('flash-ok');
+  const done = S.i, total = S.queue.length;
+  $('sInfo').textContent = `${S.mode === 'drill' ? S.drillLabel + ' ' : ''}${done} / ${total}　残り ${total - done}`;
+  $('sBar').style.width = (done / total * 100) + '%';
+  $('undoBtn').disabled = S.undo.length === 0;
+  const oks = S.results.filter(r => r.ok).length;
+  $('sCount').innerHTML = `<span class="o">○${oks}</span> <span class="x">×${S.results.length - oks}</span>`;
+  if (speakIt && G.tts) speak(it.w.en);
+}
+
+function judge(ok) {
+  if (!S) return;
+  if (S.state === 'wrong') return next();
+  const it = S.queue[S.i];
+  const key = wordKey(it.w);
+  const prev = prog.get(key) || null;
+  const affects = S.mode === 'normal' && !it.retry;
+  const u = { i: S.i, key, prev, applied: affects, pushed: false, state: S.state, ok };
+  if (affects) {
+    const rec = schedule(prev, ok, today(), G.firstKnownDays);
+    if (ok) rec.slow = G.slowSec > 0 && (S.state === 'peek' || performance.now() - S.shownAt > G.slowSec * 1000) ? 1 : 0;
+    putProgress(key, rec);
+    logAnswer(ok, 1);
+    markStudied();
+  }
+  if (!ok && affects && G.retryToday) { S.queue.push({ w: it.w, retry: true }); u.pushed = true; }
+  S.results.push({ w: it.w, ok, retry: !!it.retry });
+  S.undo.push(u);
+  if (!ok && G.speakWrong) speak(it.w.en);
+  if (ok || S.state === 'peek') {
+    if (ok) flash('ok');
+    return next();
+  }
+  S.state = 'wrong';
+  renderCard(false);
+}
+function flash(kind) {
+  const c = $('card');
+  c.classList.add('flash-' + kind);
+  setTimeout(() => c.classList.remove('flash-' + kind), 120);
+}
+function next() { S.i++; S.state = 'front'; renderCard(true); }
+function tapAction() {
+  if (!S) return;
+  if (S.state === 'front') { S.state = 'peek'; renderCard(false); }
+  else if (S.state === 'wrong') next();
+}
+function undo() {
+  if (!S || !S.undo.length) return;
+  const u = S.undo.pop();
+  if (u.applied) { putProgress(u.key, u.prev); logAnswer(u.ok, -1); }
+  if (u.pushed) S.queue.pop();
+  S.results.pop();
+  S.i = u.i;
+  S.state = 'front';
+  renderCard(false);
+  toast('取り消しました');
+}
+function endSession() { if (S) finishSession(); }
+function finishSession() {
+  const s = S; S = null;
+  const sec = Math.round((Date.now() - s.start) / 1000);
+  const first = s.results.filter(r => !r.retry);
+  const ok = first.filter(r => r.ok).length, ng = first.length - ok;
+  $('resStats').innerHTML = [
+    [ok, '○'], [ng, '×'], [`${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`, '所要時間'],
+    [first.length ? (sec / first.length).toFixed(1) + '秒' : '-', '1語あたり'],
+  ].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+  const seen = new Set();
+  const ngWords = first.filter(r => !r.ok && !seen.has(r.w.no + r.w.en) && seen.add(r.w.no + r.w.en)).map(r => r.w);
+  $('resNg').innerHTML = ngWords.length
+    ? ngWords.map(w => `<li><span class="sub">${w.no}</span>　<b>${esc(w.en)}</b>　${esc(w.ja)}</li>`).join('')
+    : '<li class="empty">×なし！</li>';
+  lastNg = ngWords;
+  $('retryNgBtn').hidden = !ngWords.length;
+  $('retryNgBtn').textContent = `今回の×をもう一度（${ngWords.length}語）`;
+  const np = todayPlan(), nn = np.due.length + np.fresh.length;
+  $('nextSetBtn').hidden = nn === 0;
+  $('nextSetBtn').textContent = `続けて次へ（${nn}語）`;
+  document.getElementById('study').classList.remove('on');
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'result'));
+}
+
+// キーボード
+document.addEventListener('keydown', e => {
+  if (!S || e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  const map = {
+    arrowright: () => judge(true), j: () => judge(true),
+    arrowleft: () => judge(false), f: () => judge(false),
+    ' ': tapAction, enter: () => S.state === 'wrong' ? next() : tapAction(),
+    z: undo, backspace: undo, s: () => speak(S.queue[S.i]?.w.en), escape: endSession,
+  };
+  if (map[k]) { e.preventDefault(); if (!e.repeat) map[k](); }
+});
+// スワイプ／タップ
+(() => {
+  const c = $('card');
+  let x0 = null, y0 = 0;
+  const sheet = c.querySelector('.sheet');
+  const reset = () => { c.classList.remove('dragging', 'drag-ok', 'drag-ng'); sheet.style.transform = ''; };
+  c.addEventListener('pointerdown', e => {
+    if (e.target.closest('#sayBtn, .exen')) return;
+    x0 = e.clientX; y0 = e.clientY;
+    if (e.pointerType !== 'mouse') c.classList.add('dragging');
+  });
+  c.addEventListener('pointermove', e => {
+    if (x0 == null || e.pointerType === 'mouse') return;
+    const dx = e.clientX - x0, dy = e.clientY - y0;
+    if (Math.abs(dy) > Math.abs(dx)) return;
+    sheet.style.transform = `translateX(${dx * 0.6}px) rotate(${dx * 0.02}deg)`;
+    c.classList.toggle('drag-ok', dx > 50);
+    c.classList.toggle('drag-ng', dx < -50);
+  });
+  $('sayBtn').addEventListener('click', e => { e.stopPropagation(); speak(S?.queue[S.i]?.w.en); });
+  // 例文をタップすると読み上げ（カードのタップ操作にはしない）
+  $('cNotes').addEventListener('click', e => { const x = e.target.closest('.exen'); if (x) { e.stopPropagation(); speak(x.textContent); } });
+  c.addEventListener('pointerup', e => {
+    if (x0 == null) return;
+    const dx = e.clientX - x0, dy = e.clientY - y0;
+    x0 = null;
+    reset();
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) judge(dx > 0);
+    else if (Math.abs(dx) < 12 && Math.abs(dy) < 12) tapAction();
+  });
+  c.addEventListener('pointercancel', () => { x0 = null; reset(); });
+})();
+
+// ===== 発音（ブラウザの読み上げ） =====
+// 端末に入っている英語の声から選ぶ。自然に聞こえやすい声を優先する
+const VOICE_PRIORITY = [/natural/i, /google us english/i, /samantha|ava|allison|siri/i, /google uk english/i,
+  /aria|jenny|guy|zira|david|mark/i, /^en-us/i];
+function englishVoices() {
+  return ('speechSynthesis' in window ? speechSynthesis.getVoices() : []).filter(v => /^en[-_]/i.test(v.lang));
+}
+function pickVoice() {
+  const vs = englishVoices();
+  if (!vs.length) return null;
+  const chosen = vs.find(v => v.name === G.voice);
+  if (chosen) return chosen;
+  for (const re of VOICE_PRIORITY) { const v = vs.find(x => re.test(x.name) || re.test(x.lang)); if (v) return v; }
+  return vs[0];
+}
+let warnedNoVoice = false;
+function speak(text) {
+  if (!text || !('speechSynthesis' in window)) return;
+  const voice = pickVoice();
+  // 英語の声がない端末でも黙らない：端末の標準の声で読む（発音は落ちる）。追加方法は一度だけ案内する
+  if (!voice && !warnedNoVoice) { warnedNoVoice = true; toast('英語の音声がないため、標準の声で読みます（設定に英語の声の追加方法）'); }
+  speechSynthesis.cancel();
+  // 熟語の「～」やカッコは読まず、「A/B」は「A, B」と読む
+  const said = text.replace(/[～~〜]/g, ' ').replace(/[()（）\[\]]/g, ' ').replace(/\//g, ', ').replace(/\s+/g, ' ').trim();
+  const u = new SpeechSynthesisUtterance(said);
+  if (voice) u.voice = voice;
+  u.lang = voice ? voice.lang : 'en-US';
+  u.rate = G.rate || 0.95;
+  speechSynthesis.speak(u);
+}
+function renderVoiceSettings() {
+  const vs = englishVoices(), cur = pickVoice();
+  $('setVoice').innerHTML = vs.length
+    ? vs.map(v => `<option value="${esc(v.name)}" ${v === cur ? 'selected' : ''}>${esc(v.name)}（${v.lang}）</option>`).join('')
+    : '<option value="">英語の音声がありません</option>';
+  $('setVoice').disabled = !vs.length;
+  $('voiceHelp').hidden = vs.length > 0;
+  $('setRate').value = G.rate || 0.95;
+  $('rateLabel').textContent = (G.rate || 0.95).toFixed(2) + '倍';
+}
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { if ($('settings').classList.contains('on')) renderVoiceSettings(); };
+
+// ===== 取り込み =====
+function parseDelimited(text) {
+  text = text.replace(/^﻿/, '');
+  const firstLine = text.split(/\r?\n/).find(l => l.trim()) || '';
+  const sep = firstLine.includes('\t') ? '\t' : ',';
+  const rows = [];
+  let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += c;
+    } else if (c === '"' && cell === '') q = true;
+    else if (c === sep) { row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(cell); rows.push(row); row = []; cell = '';
+    } else cell += c;
+  }
+  row.push(cell); rows.push(row);
+  return rows.map(r => r.map(s => s.trim())).filter(r => r.some(Boolean));
+}
+function rowsToWords(rows) {
+  if (!rows.length) return [];
+  const numeric = s => /^\d+$/.test(s);
+  // 1行目が見出し（番号でない＋見出しらしい語、または次の行から番号が始まる）なら飛ばす
+  if (!numeric(rows[0][0]) && (isHeader(rows[0]) || (rows[1] && numeric(rows[1][0])))) rows = rows.slice(1);
+  const withNo = rows.filter(r => numeric(r[0])).length >= rows.length / 2;
+  return rows.map((r, i) => withNo
+    ? { no: parseInt(r[0], 10), en: r[1] || '', ja: r.slice(2).join(', ') }
+    : { no: i + 1, en: r[0] || '', ja: r.slice(1).join(', ') }
+  ).filter(w => w.en && Number.isFinite(w.no));
+}
+function isHeader(r) { return /番号|英語|日本語|意味|単語|^(no|word|english|japanese|meaning)\.?$/i.test(r[0]) || /日本語|意味|japanese|meaning/i.test(r.slice(1).join(' ')); }
+
+function renderImport() {
+  renderNotesPanel();
+  $('deckNames').innerHTML = decks.map(d => `<option value="${esc(d.name)}">`).join('');
+  $('impText').value = ''; $('impFile').value = ''; $('impPreview').textContent = '';
+}
+$('impFile').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  $('impText').value = await f.text();
+  if (!$('impName').value) $('impName').value = f.name.replace(/\.[^.]+$/, '');
+  previewImport();
+});
+$('impText').addEventListener('input', previewImport);
+function previewImport() {
+  const ws = rowsToWords(parseDelimited($('impText').value));
+  $('impPreview').textContent = ws.length
+    ? `${ws.length}語を認識：${ws.slice(0, 3).map(w => `${w.no} ${w.en}（${w.ja}）`).join(' / ')} …`
+    : '';
+}
+async function doImport() {
+  const name = $('impName').value.trim();
+  const words = rowsToWords(parseDelimited($('impText').value));
+  if (!name) return toast('名前を入力してください');
+  if (!words.length) return toast('単語を認識できませんでした');
+  let d = decks.find(x => x.name === name);
+  let kept = 0;
+  if (d) {
+    const keys = new Set(words.map(wordKey));
+    kept = [...(await dbDeckProgress(d.id))].filter(r => keys.has(r.key)).length;
+    d.words = words;
+  } else {
+    d = { id: 'd' + Date.now().toString(36), name, words, cfg: { ...DEFAULT_DECK_CFG }, created: Date.now() };
+    decks.push(d);
+  }
+  await saveDeck(d, true);
+  await selectDeck(d.id, false);
+  await saveGlobal();
+  toast(`${name}：${words.length}語を登録` + (kept ? `（学習履歴 ${kept}語を保持）` : '') + (lastSkipped ? `・他の単語帳で完璧な${lastSkipped}語はスキップ` : ''));
+  $('impName').value = '';
+  show('home');
+}
+
+// ===== 進捗グラフ =====
+function countStatus(words) {
+  const c = { done: 0, p2: 0, p1: 0, p0: 0, new: 0 };
+  for (const w of words) c[statusOf(prog.get(wordKey(w)))]++;
+  return c;
+}
+// 完璧 → フェーズ2 → 1 → 0 の順に左から積む（残りは未学習のグレー）
+function stackBar(c, label) {
+  const tot = STATUS_ORDER.reduce((a, k) => a + c[k], 0) || 1;
+  const tip = `${label}｜` + STATUS_ORDER.map(k => `${STATUS[k].label} ${c[k]}`).join('・');
+  return `<div class="stack" data-tip="${esc(tip)}">` +
+    STATUS_ORDER.filter(k => k !== 'new' && c[k]).map(k => `<i style="width:${c[k] / tot * 100}%;background:${STATUS[k].color}"></i>`).join('') + '</div>';
+}
+const legendHtml = () => '<div class="legend">' + STATUS_ORDER.map(k => `<span style="--c:${STATUS[k].color}">${STATUS[k].label}</span>`).join('') + '</div>';
+const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '-';
+const mdStr = n => { const d = dayStr(n); return +d.slice(5, 7) + '/' + +d.slice(8); };
+// 目盛りの上限：v以上で、半分（中間の目盛り）も整数になるきりのいい数
+function niceMax(v) {
+  if (v <= 4) return 4;
+  const p = 10 ** Math.floor(Math.log10(v));
+  for (const m of [1, 1.2, 1.4, 1.6, 2, 3, 4, 5, 6, 8, 10]) {
+    const n = Math.round(m * p);
+    if (n >= v && n % 2 === 0) return n;
+  }
+  return 20 * p;
+}
+
+// 進捗は「この単語帳」と「全単語帳」を切り替えて見る
+let pgScope = 'deck';
+function setPgScope(scope) { pgScope = scope; renderProgress(); }
+
+// 1冊ぶんの材料：語の状況・日別記録・記録一覧
+function deckModel(d, recMap, log) {
+  const get = w => recMap.get(wordKey(w));
+  const c = { done: 0, p2: 0, p1: 0, p0: 0, new: 0 };
+  const recs = [];
+  for (const w of d.words) { const r = get(w); c[statusOf(r)]++; if (r) recs.push(r); }
+  return { d, c, tot: d.words.length, log: log || {}, recs };
+}
+async function renderProgress() {
+  if (!deck) return show('home');
+  document.querySelectorAll('#pgScope button').forEach(b => b.classList.toggle('on', b.dataset.s === pgScope));
+  let models;
+  if (pgScope === 'deck') {
+    models = [deckModel(deck, prog, dayLog)];
+  } else {
+    // 他の単語帳の記録は端末内の保存から読む（同期で最新になっている）
+    const byDeck = new Map(decks.map(d => [d.id, new Map()]));
+    for (const r of await dbGetAll('progress')) byDeck.get(r.deck)?.set(r.key, fillHistory(r));
+    byDeck.set(deck.id, prog);
+    models = [];
+    for (const d of decks) {
+      const log = d.id === deck.id ? dayLog : (await dbGet('meta', 'log:' + d.id))?.v;
+      models.push(deckModel(d, byDeck.get(d.id), log));
+    }
+  }
+  const all = pgScope === 'all';
+  const c = { done: 0, p2: 0, p1: 0, p0: 0, new: 0 };
+  for (const m of models) for (const k in c) c[k] += m.c[k];
+  const tot = models.reduce((a, m) => a + m.tot, 0);
+  $('progTitle').textContent = all ? `全単語帳の進捗（${decks.length}冊）` : deck.name + ' の進捗';
+
+  $('pgOverall').innerHTML = `
+    <div class="stats" style="margin-top:0">
+      <div class="stat"><b>${pct(c.done, tot)}</b><span>完璧（${c.done}語）</span></div>
+      <div class="stat"><b>${c.p2}</b><span>フェーズ2</span></div>
+      <div class="stat"><b>${c.p1}</b><span>フェーズ1</span></div>
+      <div class="stat"><b>${c.p0}</b><span>フェーズ0</span></div>
+      <div class="stat"><b>${c.new}</b><span>未学習</span></div>
+    </div>
+    ${legendHtml()}
+    ${stackBar(c, all ? '全単語帳' : '全体')}
+    <p class="hint" style="margin:10px 0 0">×をつけた語はフェーズ0に戻り、別々の日に3回続けて○で「完璧」。初見で○の語ははじめから完璧。${all ? '同じ英語が複数の単語帳にある場合は、それぞれで数えています。' : ''}</p>
+    <div id="pgLaps"></div>`;
+  renderLaps(models.flatMap(m => m.recs), !all);
+
+  // 直近30日の学習数（全単語帳なら合計）
+  const t = today(), days = Array.from({ length: 30 }, (_, i) => t - 29 + i);
+  const dayOk = d => models.reduce((a, m) => a + (m.log[d]?.ok || 0), 0);
+  const dayNg = d => models.reduce((a, m) => a + (m.log[d]?.ng || 0), 0);
+  const cnt = days.map(d => dayOk(d) + dayNg(d));
+  const sum = cnt.reduce((a, b) => a + b, 0), active = cnt.filter(Boolean).length;
+  $('pgDailySum').textContent = `30日で ${sum}語（学習した日 ${active}日・今日 ${cnt.at(-1)}語）`;
+  const max = niceMax(Math.max(...cnt, 1) * 1.1);
+  $('pgDaily').innerHTML = `<div class="bars">
+      <div class="gridline" style="bottom:100%"><span>${max}</span></div>
+      <div class="gridline" style="bottom:50%"><span>${max / 2}</span></div>
+      ${days.map((d, i) => `<div class="col" data-tip="${mdStr(d)}｜${cnt[i]}語（○${dayOk(d)} ×${dayNg(d)}・正答率 ${pct(dayOk(d), cnt[i])}）"><i class="${d === t ? 'today' : ''}" style="height:${cnt[i] / max * 100}%"></i></div>`).join('')}
+    </div>
+    <div class="xaxis"><span>${mdStr(days[0])}</span><span>${mdStr(days[15])}</span><span>今日</span></div>`;
+
+  // 完璧な語数の推移：単語帳ごとに、記録のない日は前日の値を引き継ぎ（今日は現在値）、合計する
+  const done = days.map(() => 0);
+  for (const m of models) {
+    const before = Object.keys(m.log).map(Number).filter(d => d < days[0]).sort((a, b) => b - a)[0];
+    let last = before != null ? m.log[before].done : 0;
+    days.forEach((d, i) => { last = d === t ? m.c.done : (m.log[d]?.done ?? last); done[i] += last; });
+  }
+  const dmax = niceMax(Math.max(...done, 1) * 1.1);
+  const pts = done.map((v, i) => `${(i + .5) / 30 * 100},${100 - v / dmax * 100}`).join(' ');
+  $('pgDone').innerHTML = `<div class="line-wrap">
+      <div class="gridline" style="bottom:100%"><span>${dmax}</span></div>
+      <div class="gridline" style="bottom:50%"><span>${dmax / 2}</span></div>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="完璧な語数の推移">
+        <polyline points="${pts}" fill="none" stroke="var(--seq-done)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+      </svg>
+      ${days.map((d, i) => `<div class="hit" style="left:${i / 30 * 100}%;width:${100 / 30}%" data-tip="${mdStr(d)}｜完璧 ${done[i]}語（${pct(done[i], tot)}）"></div>`).join('')}
+    </div>
+    <div class="xaxis"><span>${mdStr(days[0])}</span><span>${mdStr(days[15])}</span><span>今日 完璧${c.done}語</span></div>`;
+
+  // 内訳：この単語帳なら番号100語ずつ、全単語帳なら単語帳ごと
+  const rows = [];
+  if (all) {
+    $('pgBlocksTitle').textContent = '単語帳ごとの状況';
+    for (const m of models) rows.push(`<span class="lab">${esc(m.d.name)}</span>${stackBar(m.c, m.d.name)}<span class="pct">${pct(m.c.done, m.tot)}</span>`);
+  } else {
+    $('pgBlocksTitle').textContent = '番号ごとの状況（100語ずつ）';
+    const sorted = deck.words.slice().sort((a, b) => a.no - b.no);
+    for (let i = 0; i < sorted.length; i += 100) {
+      const ws = sorted.slice(i, i + 100), bc = countStatus(ws);
+      const lab = `${ws[0].no}–${ws.at(-1).no}`;
+      rows.push(`<span class="lab">${lab}</span>${stackBar(bc, lab)}<span class="pct">${pct(bc.done, ws.length)}</span>`);
+    }
+  }
+  $('pgBlocks').innerHTML = rows.join('');
+  $('pgBlocksLegend').innerHTML = legendHtml();
+}
+// 周目ごとの×の数（n周目 = 各語をn回目に答えたとき）。特訓・一覧ボタンは単語帳ごとの表示のときだけ
+function renderLaps(recs, withButtons) {
+  const maxLap = Math.max(0, ...recs.map(r => r.h?.length || 0));
+  if (!maxLap) return;
+  const rows = [];
+  for (let n = 1; n <= maxLap; n++) {
+    const answered = recs.filter(r => r.h.length >= n).length, ng = recs.filter(r => wrongAtLap(r, n)).length;
+    rows.push(`<tr><td>${n}周目</td><td>${answered}語</td><td class="${ng ? 'wrongs' : 'sub'}">${ng}語</td><td class="sub">${pct(answered - ng, answered)}</td>` +
+      `<td>${ng && withButtons ? `<button onclick="startSession('drill','lap${n}')">特訓</button> <button onclick="listFilter('lap${n}')">一覧</button>` : ''}</td></tr>`);
+  }
+  $('pgLaps').innerHTML = `<h2 style="margin-top:18px">周目ごとの×</h2>
+    <table class="words"><thead><tr><th>周目</th><th>答えた語</th><th>×</th><th>正答率</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+}
+function listFilter(id) { show('list'); $('stFilter').value = id; renderList(); }
+// ツールチップ（マウス／タップ共通）
+(() => {
+  const tip = $('tip');
+  const showTip = e => {
+    const el = e.target.closest?.('[data-tip]');
+    if (!el) { tip.style.display = 'none'; return; }
+    tip.textContent = el.dataset.tip;
+    tip.style.display = 'block';
+    const w = tip.offsetWidth;
+    tip.style.left = Math.min(Math.max(8, e.clientX - w / 2), innerWidth - w - 8) + 'px';
+    tip.style.top = Math.max(8, e.clientY - 44) + 'px';
+  };
+  document.addEventListener('pointermove', showTip);
+  document.addEventListener('pointerdown', showTip);
+  document.addEventListener('scroll', () => { tip.style.display = 'none'; }, true);
+})();
+
+// ===== 単語一覧 =====
+function renderList() {
+  if (!deck) return;
+  $('listTitle').textContent = deck.name;
+  const q = $('q').value.trim().toLowerCase();
+  // 絞り込み：状態（未学習／フェーズ0〜2／完璧）＋ ×あり・n周目×
+  const filters = [{ id: '', label: 'すべて', test: () => true },
+    ...['new', 'p0', 'p1', 'p2', 'done'].map(k => ({ id: k, label: STATUS[k].label, test: r => statusOf(r) === k })),
+    ...drillFilters().filter(x => !x.sep && !/^p\d$/.test(x.id))];
+  const cur = $('stFilter').value;
+  const recsAll = deck.words.map(w => prog.get(wordKey(w)));
+  $('stFilter').innerHTML = filters.map(x => `<option value="${x.id}">${x.label}（${recsAll.filter(x.test).length}）</option>`).join('');
+  $('stFilter').value = filters.some(x => x.id === cur) ? cur : '';
+  const flt = filters.find(x => x.id === $('stFilter').value);
+  const sort = $('sortSel').value;
+  let rows = deck.words.map(w => ({ w, r: prog.get(wordKey(w)) }));
+  if (q) rows = rows.filter(({ w }) => String(w.no) === q || w.en.toLowerCase().includes(q) || w.ja.includes(q));
+  rows = rows.filter(x => flt.test(x.r));
+  if (sort === 'wrong') rows.sort((a, b) => (b.r?.wrong || 0) - (a.r?.wrong || 0) || a.w.no - b.w.no);
+  else if (sort === 'due') rows.sort((a, b) => (a.r?.due ?? 1e9) - (b.r?.due ?? 1e9) || a.w.no - b.w.no);
+  else rows.sort((a, b) => a.w.no - b.w.no);
+  $('listCount').textContent = `${rows.length}語`;
+  const shown = rows.slice(0, 3000);
+  $('listBody').innerHTML = shown.map(({ w, r }) => {
+    const st = statusOf(r);
+    return `<tr><td class="n">${w.no}</td><td><b>${esc(w.en)}</b></td><td>${esc(w.ja)}</td><td><span class="st st-${st}">${STATUS[st].label}</span></td>` +
+      `<td class="hist">${r?.auto && !r.h ? `<span class="sub">スキップ（${esc(r.auto)}で完璧）</span>` : histHtml(r?.h)}${r?.slow ? '<span class="h-slow" title="迷った語">迷</span>' : ''}</td><td class="sub">${r ? relDay(r.due) : ''}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="empty">該当なし</td></tr>';
+}
+
+// ===== 設定 =====
+function renderSettings() {
+  $('deckSettings').hidden = !deck;
+  if (deck) {
+    $('setDeckName').textContent = deck.name;
+    $('setNewPerDay').value = deck.cfg.newPerDay;
+    $('setFrom').value = deck.cfg.from ?? '';
+    $('setTo').value = deck.cfg.to ?? '';
+    $('setOrder').value = deck.cfg.order;
+    $('setGoal').value = deck.cfg.goal ?? 200;
+    $('setExam').value = deck.cfg.examDate || '';
+  }
+  $('setFirstKnown').value = G.firstKnownDays;
+  $('setSlow').value = G.slowSec;
+  $('setRetry').checked = G.retryToday;
+  $('setTts').checked = G.tts;
+  renderVoiceSettings();
+  $('setSkipKnown').checked = G.skipKnown;
+  $('setSpeakWrong').checked = G.speakWrong;
+  $('setShowNotes').checked = G.showNotes !== false;
+  $('dbgDate').textContent = dayStr(today()) + (G.dayOffset ? `（実際より${G.dayOffset > 0 ? '+' : ''}${G.dayOffset}日）` : '');
+}
+const numOrNull = v => v === '' ? null : parseInt(v, 10);
+['setNewPerDay', 'setFrom', 'setTo', 'setOrder', 'setGoal', 'setExam'].forEach(id => $(id).addEventListener('change', async () => {
+  deck.cfg = {
+    newPerDay: Math.max(0, parseInt($('setNewPerDay').value, 10) || 0),
+    from: numOrNull($('setFrom').value), to: numOrNull($('setTo').value), order: $('setOrder').value,
+    goal: Math.max(0, parseInt($('setGoal').value, 10) || 0), examDate: $('setExam').value,
+  };
+  await saveDeck(deck); toast('保存しました');
+}));
+$('setVoice').addEventListener('change', async () => { G.voice = $('setVoice').value; await saveGlobal(); speak('pronunciation'); });
+$('setRate').addEventListener('input', () => { G.rate = +$('setRate').value; $('rateLabel').textContent = G.rate.toFixed(2) + '倍'; });
+$('setRate').addEventListener('change', async () => { await saveGlobal(); speak('pronunciation'); });
+['setFirstKnown', 'setSlow', 'setRetry', 'setTts', 'setSkipKnown', 'setSpeakWrong', 'setShowNotes'].forEach(id => $(id).addEventListener('change', async () => {
+  G.firstKnownDays = Math.max(1, parseInt($('setFirstKnown').value, 10) || 30);
+  G.slowSec = Math.max(0, +$('setSlow').value || 0);
+  G.retryToday = $('setRetry').checked;
+  G.tts = $('setTts').checked;
+  G.skipKnown = $('setSkipKnown').checked;
+  G.speakWrong = $('setSpeakWrong').checked;
+  G.showNotes = $('setShowNotes').checked;
+  if (G.skipKnown) await skipKnownElsewhere();
+  await saveGlobal(); toast('保存しました');
+}));
+async function shiftDay(n) {
+  G.dayOffset = n === 0 ? 0 : (G.dayOffset || 0) + n;
+  await saveGlobal(); renderSettings(); toast('今日 = ' + dayStr(today()));
+}
+async function deleteDeck() {
+  if (!deck || !(await askConfirm(`「${deck.name}」と学習履歴を削除します。同期している端末からも消えます。`, '削除する'))) return;
+  const id = deck.id;
+  removeDeckRemote(deck);
+  const recs = await dbDeckProgress(id);
+  await tx('progress', 'readwrite', st => recs.forEach(r => st.delete(r.id)));
+  await dbDel('decks', id);
+  await dbDel('meta', 'log:' + id);
+  decks = decks.filter(d => d.id !== id);
+  deck = null; prog = new Map();
+  if (decks[0]) await selectDeck(decks[0].id, false);
+  await saveGlobal();
+  show('home');
+}
+
+// ===== バックアップ =====
+async function exportJson() {
+  const data = { app: 'word-sprint', version: 1, exported: new Date().toISOString(),
+    decks: await dbGetAll('decks'), progress: await dbGetAll('progress'), meta: await dbGetAll('meta') };
+  const filename = `word-sprint-backup-${dayStr(today())}.json`, json = JSON.stringify(data);
+  // claude.ai 上ではページから直接ダウンロードできないので、保存機能を使う
+  const dl = window.claude?.use ? await window.claude.use('downloads').catch(() => null) : null;
+  if (dl) {
+    try { await dl.save({ filename, data: json }); toast('保存しました'); }
+    catch (e) { if (e?.code !== 'declined') toast('保存できませんでした：' + (e?.message || e)); }
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+async function importJson(file) {
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (data.app !== 'word-sprint') throw new Error('形式が違います');
+    if (!(await askConfirm('この端末のデータをバックアップの内容に置き換えます（同期中は、語ごとに新しいほうの記録が残ります）。', '置き換える'))) return;
+    for (const s of ['decks', 'progress', 'meta']) {
+      await tx(s, 'readwrite', st => { st.clear(); (data[s] || []).forEach(v => st.put(v)); });
+    }
+    deck = null; await init(); await syncAll(); toast('インポートしました');
+  } catch (e) { toast('インポートできませんでした：' + e.message); }
+  $('restoreFile').value = '';
+}
+
+// ===== 画面内の確認ダイアログ（claude.ai 上では confirm() が使えないため） =====
+function askConfirm(msg, yesLabel = 'OK') {
+  return new Promise(res => {
+    $('modalMsg').textContent = msg;
+    $('modalYes').textContent = yesLabel;
+    $('modal').hidden = false;
+    $('modalYes').focus();
+    const done = v => { $('modal').hidden = true; $('modalYes').onclick = $('modalNo').onclick = null; res(v); };
+    $('modalYes').onclick = () => done(true);
+    $('modalNo').onclick = () => done(false);
+  });
+}
+
+// ===== 端末間の同期 =====
+// claude.ai 上で開いたときだけ有効。○×は端末内（IndexedDB）に即保存し、数秒ごとにまとめてクラウドへ送る。
+// 記録は語ごとに更新時刻 t を持ち、PCとスマホで食い違ったら新しいほうを残す。
+// クラウドの中身：decks/{単語帳} 名前と設定、words/{単語帳}_{n} 単語（1000語ずつ）、
+//                 prog/{単語帳}_{番号÷100} 記録（100語ずつ）、logs/{単語帳} 日別の学習数、meta/days 学習した日
+const Sync = { db: null, prog: new Map(), meta: new Map(), timer: 0, deckTimer: 0, busy: false, unsubProg: null, bundle: null };
+const WORDS_PER_DOC = 1000;
+// 学習記録は利用者ごとの専用領域 data/users/<id>/ に置く（友達と共有しても記録は混ざらない）。
+// 利用者が分からないときだけ、以前の共通の場所を使う
+const SP = {
+  progCol: () => Sync.uid ? `data/users/${Sync.uid}/sync/prog` : 'prog',
+  prog: b => `${SP.progCol()}/${b}`,
+  log: id => Sync.uid ? `data/users/${Sync.uid}/sync/logs/${id}` : 'logs/' + id,
+  days: () => Sync.uid ? `data/users/${Sync.uid}/days` : 'meta/days',
+};
+const blockOf = (deckId, no) => `${deckId}_${Math.floor(no / 100)}`;
+
+function setSyncState(state) {
+  const el = $('syncBadge');
+  el.hidden = !state;
+  el.textContent = { loading: '読み込み中…', saving: '同期中…', ok: '同期済み', error: '未同期（自動で再試行）' }[state] || '';
+  el.classList.toggle('err', state === 'error');
+}
+function refreshView() {
+  if (S) return; // 学習中は画面を描き直さない
+  const on = id => $(id).classList.contains('on');
+  if (on('home')) renderHome();
+  else if (on('list')) renderList();
+  else if (on('progress')) renderProgress();
+}
+
+// --- 送信（端末 → クラウド） ---
+// 単語帳に実在する語の記録か（古い取り込みの残りなど、番号が同じ別の語の記録は同期しない）
+const keySets = new Map();
+function validKey(deckId, key) {
+  const d = decks.find(x => x.id === deckId);
+  if (!d) return false;
+  let set = keySets.get(deckId);
+  if (!set || set.words !== d.words) { set = new Set(d.words.map(wordKey)); set.words = d.words; keySets.set(deckId, set); }
+  return set.has(key);
+}
+function queueProgPush(deckId, key, rec) {
+  if (!Sync.db || !validKey(deckId, key)) return;
+  const i = key.indexOf('|'), no = +key.slice(0, i), en = key.slice(i + 1);
+  const b = blockOf(deckId, no);
+  const entry = Sync.prog.get(b) || { deck: deckId, r: {} };
+  // del は毎回書く（クラウド側は項目ごとに上書きマージされるため、消した印が残らないように）
+  entry.r['n' + no] = rec ? { ...plainRec(rec), en, del: 0 } : { en, del: 1, t: Date.now() };
+  Sync.prog.set(b, entry);
+  scheduleFlush();
+}
+function plainRec(r) { const { id, deck, key, ...rest } = r; return rest; }
+function queueMetaPush(path, fields) {
+  if (!Sync.db) return;
+  Sync.meta.set(path, { ...(Sync.meta.get(path) || {}), ...fields });
+  scheduleFlush();
+}
+function scheduleFlush(ms = 2500) { clearTimeout(Sync.timer); Sync.timer = setTimeout(flush, ms); }
+
+// update は既存のドキュメントにしか使えないので、まだ無ければ set で作る
+async function mergeDoc(path, body) {
+  const ref = Sync.db.doc(path);
+  try { await ref.update(body); }
+  catch (e) {
+    if (e?.code !== 'invalid_argument' || (await ref.get()).exists) throw e;
+    await ref.set(body);
+  }
+}
+async function flush() {
+  if (!Sync.db || Sync.busy || (!Sync.prog.size && !Sync.meta.size)) return;
+  Sync.busy = true;
+  setSyncState('saving');
+  const prog = Sync.prog, meta = Sync.meta;
+  Sync.prog = new Map(); Sync.meta = new Map();
+  try {
+    for (const [b, e] of prog) { await mergeDoc(SP.prog(b), { deck: e.deck, r: e.r }); prog.delete(b); }
+    for (const [path, f] of meta) { await mergeDoc(path, { r: f }); meta.delete(path); }
+    setSyncState('ok');
+  } catch {
+    // 送れなかった分を戻してあとで再試行（その間に入った新しい記録を優先）
+    for (const [b, e] of prog) Sync.prog.set(b, { deck: e.deck, r: { ...e.r, ...(Sync.prog.get(b)?.r || {}) } });
+    for (const [path, f] of meta) Sync.meta.set(path, { ...f, ...(Sync.meta.get(path) || {}) });
+    setSyncState('error');
+    Sync.busy = false;
+    return scheduleFlush(30000);
+  }
+  Sync.busy = false;
+  if (Sync.prog.size || Sync.meta.size) scheduleFlush(500);
+}
+
+async function pushDeck(d, wordsChanged) {
+  if (!Sync.db) return;
+  try {
+    setSyncState('saving');
+    const parts = Math.ceil(d.words.length / WORDS_PER_DOC);
+    // 単語を先に置き、最後に単語帳情報を書く（相手の端末が途中の状態を読まないように）
+    if (wordsChanged) {
+      for (let i = 0; i < parts; i++) {
+        const w = d.words.slice(i * WORDS_PER_DOC, (i + 1) * WORDS_PER_DOC).map(x => [x.no, x.en, x.ja]);
+        await Sync.db.doc(`words/${d.id}_${i}`).set({ deck: d.id, w });
+      }
+    }
+    await Sync.db.doc('decks/' + d.id).set({ name: d.name, cfg: d.cfg, created: d.created, updated: d.updated, parts, n: d.words.length });
+    setSyncState('ok');
+  } catch { setSyncState('error'); }
+}
+async function removeDeckRemote(d) {
+  if (!Sync.db) return;
+  try {
+    await Sync.db.doc('decks/' + d.id).set({ name: d.name, deleted: 1, updated: Date.now() });
+    const blocks = await Sync.db.collection(SP.progCol()).where('deck', '==', d.id).get();
+    for (const b of blocks.docs) await Sync.db.doc(SP.prog(b.id)).delete();
+    for (let i = 0; i < Math.ceil(d.words.length / WORDS_PER_DOC); i++) await Sync.db.doc(`words/${d.id}_${i}`).delete();
+    await Sync.db.doc(SP.log(d.id)).delete();
+  } catch { setSyncState('error'); }
+}
+
+// --- 受信（クラウド → 端末） ---
+async function removeDeckLocal(id) {
+  const recs = await dbDeckProgress(id);
+  await tx('progress', 'readwrite', st => recs.forEach(r => st.delete(r.id)));
+  await dbDel('decks', id);
+  await dbDel('meta', 'log:' + id);
+  decks = decks.filter(d => d.id !== id);
+  if (deck?.id === id) { deck = null; prog = new Map(); }
+}
+async function pullDecks() {
+  const snap = await Sync.db.collection('decks').get();
+  const remote = new Map(snap.docs.map(x => [x.id, x.data()]));
+  let changed = false;
+  for (const [id, r] of remote) {
+    const local = decks.find(d => d.id === id);
+    if (r.deleted) { if (local) { await removeDeckLocal(id); changed = true; } continue; }
+    if (local && (local.updated || 0) >= (r.updated || 0)) continue;
+    const words = [];
+    for (let i = 0; i < r.parts; i++) {
+      const w = await Sync.db.doc(`words/${id}_${i}`).get();
+      if (w.exists) for (const [no, en, ja] of w.data().w) words.push({ no, en, ja });
+    }
+    if (words.length < r.n) continue; // まだ全部届いていない（次の同期で読む）
+    const d = { id, name: r.name, cfg: { ...DEFAULT_DECK_CFG, ...r.cfg }, created: r.created, updated: r.updated, words };
+    await dbPut('decks', d);
+    if (local) Object.assign(local, d); else decks.push(d);
+    changed = true;
+  }
+  for (const d of decks) {
+    const r = remote.get(d.id);
+    if (!r || (!r.deleted && (d.updated || 0) > (r.updated || 0))) await pushDeck(d, true);
+  }
+  decks.sort((a, b) => a.created - b.created);
+  return changed;
+}
+// クラウドの記録と端末の記録を語ごとに比べ、新しいほうにそろえる
+async function mergeProgDocs(bodies, deckId) {
+  const live = new Set(decks.map(d => d.id));
+  const local = new Map((deckId ? await dbDeckProgress(deckId) : await dbGetAll('progress')).map(r => [r.id, r]));
+  const puts = [], dels = [], seen = new Set();
+  for (const b of bodies) {
+    if (!b || !live.has(b.deck)) continue;
+    for (const [f, rr] of Object.entries(b.r || {})) {
+      const key = f.slice(1) + '|' + rr.en, id = b.deck + '\t' + key;
+      if (!validKey(b.deck, key)) continue;
+      seen.add(id);
+      const loc = local.get(id), rt = rr.t || 0, lt = loc?.t || 0;
+      if (rt > lt) {
+        if (rr.del) { if (loc) dels.push(id); }
+        else { const { en, del, ...rec } = rr; puts.push({ ...rec, id, deck: b.deck, key }); }
+      } else if (lt > rt) queueProgPush(b.deck, key, loc);
+    }
+  }
+  for (const [id, loc] of local) if (!seen.has(id) && live.has(loc.deck)) queueProgPush(loc.deck, loc.key, fillHistory(loc));
+  if (puts.length || dels.length) await tx('progress', 'readwrite', st => { puts.forEach(r => st.put(r)); dels.forEach(id => st.delete(id)); });
+  if (deck) {
+    for (const r of puts) if (r.deck === deck.id) prog.set(r.key, fillHistory(r));
+    for (const id of dels) { const [dk, key] = id.split('\t'); if (dk === deck.id) prog.delete(key); }
+  }
+  return puts.length + dels.length;
+}
+async function pullProgress() {
+  const snap = await Sync.db.collection(SP.progCol()).get();
+  await mergeProgDocs(snap.docs.map(x => x.data()));
+}
+async function pullMeta() {
+  const days = await Sync.db.doc(SP.days()).get();
+  const remoteDays = new Set(Object.keys(days.exists ? days.data().r || {} : {}).map(k => +k.slice(1)));
+  const missing = studyDays.filter(d => !remoteDays.has(d));
+  if (missing.length) queueMetaPush(SP.days(), Object.fromEntries(missing.map(d => ['d' + d, 1])));
+  if ([...remoteDays].some(d => !studyDays.includes(d))) {
+    studyDays = [...new Set([...studyDays, ...remoteDays])];
+    await dbPut('meta', { k: 'studyDays', v: studyDays });
+  }
+  // 日別の学習数：同じ日が両方にあれば、数の多いほうを残す
+  for (const d of decks) {
+    const doc = await Sync.db.doc(SP.log(d.id)).get();
+    const remote = doc.exists ? doc.data().r || {} : {};
+    const localLog = (await dbGet('meta', 'log:' + d.id))?.v || {};
+    const size = e => (e?.ok || 0) + (e?.ng || 0);
+    let changed = false;
+    const push = {};
+    for (const [k, e] of Object.entries(remote)) if (size(e) > size(localLog[k.slice(1)])) { localLog[k.slice(1)] = e; changed = true; }
+    for (const [day, e] of Object.entries(localLog)) if (size(e) > size(remote['d' + day])) push['d' + day] = e;
+    if (changed) { await dbPut('meta', { k: 'log:' + d.id, v: localLog }); if (deck?.id === d.id) dayLog = localLog; }
+    if (Object.keys(push).length) queueMetaPush(SP.log(d.id), push);
+  }
+}
+// 表示中の単語帳は、もう一方の端末での学習をリアルタイムに受け取る
+function watchDeckProgress(id) {
+  if (!Sync.db) return;
+  Sync.unsubProg?.();
+  Sync.unsubProg = Sync.db.collection(SP.progCol()).where('deck', '==', id).onSnapshot(async snap => {
+    if (await mergeProgDocs(snap.docs.map(x => x.data()), id)) refreshView();
+  }, () => setSyncState('error'));
+}
+// 以前は全員共通の場所に置いていた記録（持ち主のもの）を、この端末に取り込む。
+// 取り込んだ記録は、続く syncAll で持ち主の専用領域へ送られる
+async function takeLegacyRecords() {
+  const snap = await Sync.db.collection('prog').get();
+  if (snap.empty) return;
+  await mergeProgDocs(snap.docs.map(x => x.data()));
+  const days = await Sync.db.doc('meta/days').get();
+  const legacyDays = Object.keys(days.exists ? days.data().r || {} : {}).map(k => +k.slice(1));
+  if (legacyDays.some(d => !studyDays.includes(d))) {
+    studyDays = [...new Set([...studyDays, ...legacyDays])];
+    await dbPut('meta', { k: 'studyDays', v: studyDays });
+  }
+  const size = e => (e?.ok || 0) + (e?.ng || 0);
+  for (const d of decks) {
+    const doc = await Sync.db.doc('logs/' + d.id).get();
+    if (!doc.exists) continue;
+    const localLog = (await dbGet('meta', 'log:' + d.id))?.v || {};
+    for (const [k, e] of Object.entries(doc.data().r || {})) if (size(e) > size(localLog[k.slice(1)])) localLog[k.slice(1)] = e;
+    await dbPut('meta', { k: 'log:' + d.id, v: localLog });
+    if (deck?.id === d.id) dayLog = localLog;
+  }
+}
+async function syncAll() {
+  if (!Sync.db) return;
+  await pullDecks();
+  if (Sync.isOwner) await takeLegacyRecords(); // 単語帳を読み込んでから（記録は単語帳ごとに受け取るため）
+  await pullProgress();
+  await pullMeta();
+  await pullNotes();
+  if (!deck && decks[0]) await selectDeck((decks.find(d => d.id === G.lastDeck) || decks[0]).id, false);
+  else if (deck) { prog = new Map((await dbDeckProgress(deck.id)).map(r => [r.key, fillHistory(r)])); watchDeckProgress(deck.id); }
+  refreshView();
+}
+async function initSync() {
+  const db = window.claude?.use ? await window.claude.use('db').catch(() => null) : null;
+  if (db) {
+    const user = await window.claude.use('user').catch(() => null);
+    Sync.uid = user ? await user.id().catch(() => null) : null;
+    Sync.db = db;
+    setSyncState('loading');
+    try {
+      Sync.isOwner = !!Sync.uid && await user.isOwner().catch(() => false);
+      await syncAll();
+      setSyncState('ok');
+    } catch { setSyncState('error'); }
+    db.collection('decks').onSnapshot(() => {
+      clearTimeout(Sync.deckTimer);
+      Sync.deckTimer = setTimeout(async () => {
+        if (await pullDecks().catch(() => false)) {
+          if (!deck && decks[0]) await selectDeck(decks[0].id, false);
+          refreshView();
+        }
+      }, 1500);
+    }, () => {});
+    document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('online', () => scheduleFlush(500));
+  }
+  await showBundleOption();
+}
+
+// ===== 同梱の単語帳（初回だけ） =====
+async function showBundleOption() {
+  if (decks.length) return;
+  const b = await fetch('bundle.json').then(r => (r.ok ? r.json() : null)).catch(() => null);
+  if (!b) return;
+  Sync.bundle = b;
+  $('bundleBtn').hidden = false;
+  $('bundleBtn').textContent = `用意した${b.decks.length}冊${b.progress ? 'と学習記録' : ''}を取り込む`;
+  $('noDeckMsg').textContent = `${b.decks.map(d => d.name).join('・')} を取り込んで始めます。`;
+}
+async function importBundle() {
+  const b = Sync.bundle;
+  if (!b) return;
+  $('bundleBtn').disabled = true;
+  $('bundleBtn').textContent = '取り込み中…';
+  const idOf = {};
+  for (const [i, item] of b.decks.entries()) {
+    const words = rowsToWords(parseDelimited(await fetch(item.file).then(r => r.text())));
+    const d = { id: 'd' + Date.now().toString(36) + i, name: item.name, words, cfg: { ...DEFAULT_DECK_CFG }, created: Date.now() + i };
+    decks.push(d);
+    idOf[item.name] = d.id;
+    await saveDeck(d, true);
+  }
+  if (b.progress) {
+    const seed = await fetch(b.progress).then(r => r.json());
+    const recs = seed.progress.filter(r => idOf[r.deckName] && validKey(idOf[r.deckName], r.key))
+      .map(({ deckName, ...r }) => ({ ...r, t: r.t || 1, id: idOf[deckName] + '\t' + r.key, deck: idOf[deckName] }));
+    await tx('progress', 'readwrite', st => recs.forEach(r => st.put(r)));
+    studyDays = [...new Set([...studyDays, ...(seed.studyDays || [])])];
+    await dbPut('meta', { k: 'studyDays', v: studyDays });
+    for (const [name, log] of Object.entries(seed.logs || {})) if (idOf[name]) await dbPut('meta', { k: 'log:' + idOf[name], v: log });
+  }
+  await selectDeck(decks[0].id, false);
+  await saveGlobal();
+  if (Sync.db) { await pullProgress(); await pullMeta(); scheduleFlush(500); }
+  $('bundleBtn').hidden = true;
+  show('home');
+  toast(`${b.decks.length}冊を取り込みました`);
+}
+
+// ネット上に置いたときだけオフライン対応を有効にする（ファイルを直接開いたときは使わない）
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+init().then(initSync).catch(e => { document.body.innerHTML = '<p style="padding:20px">起動に失敗しました：' + esc(e.message) + '</p>'; });
+</script>
+</body>
+</html>
