@@ -1766,6 +1766,8 @@ async function importBundle() {
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
+// 学習記録をブラウザに自動で消されないよう頼む（容量不足などでの自動削除の対象外になる）
+navigator.storage?.persist?.().catch(() => {});
 init().then(initSync).catch(e => { document.body.innerHTML = '<p style="padding:20px">起動に失敗しました：' + esc(e.message) + '</p>'; });
 </script>
 </body>
